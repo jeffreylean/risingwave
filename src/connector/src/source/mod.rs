@@ -22,6 +22,7 @@ pub mod google_pubsub;
 pub mod kafka;
 pub mod kinesis;
 pub mod monitor;
+pub mod nats;
 pub mod nexmark;
 pub mod pulsar;
 pub use base::*;

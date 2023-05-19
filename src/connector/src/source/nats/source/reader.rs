@@ -1,64 +1,53 @@
 use std::thread;
 
-use async_nats::jetstream::{self, consumer};
+use async_nats::jetstream::{self, consumer, context};
+use async_nats::Subscriber;
 use futures::StreamExt;
+use futures_async_stream::try_stream;
 
-fn async_runtime() -> tokio::runtime::Runtime {
-    tokio::runtime::Builder::new_current_thread()
-        .thread_name("nats-thread")
-        .enable_all()
-        .build()
-        .unwrap()
+use crate::parser::ParserConfig;
+use crate::source::google_pubsub::TaggedReceivedMessage;
+use crate::source::nats::NatsProperties;
+use crate::source::{
+    Column, SourceContext, SourceContextRef, SourceMessage, SplitId, SplitImpl, SplitReader,
+};
+
+pub struct NatsSplitReader {
+    subscription: Subscriber,
+    split_id: SplitId,
+    parser_config: ParserConfig,
+    source_ctx: SourceContext,
 }
 
-pub async fn new() -> Result<(), async_nats::Error> {
-    // Get Nats addr from config
-    let addr = &"127.0.0.1:4222";
-    println!("This is NATS address {:?}", addr);
+impl NatsSplitReader {
+    #[try_stream(boxed, ok = Vec<SourceMessage>, error = anyhow::Error)]
+    async fn into_data_stream(self) {
+        while let Some(message) = self.subscription.next().await {}
+        print!("{:}", message);
+    }
+}
 
-    let client = async_nats::connect(addr).await?;
-    let js = jetstream::new(client.clone());
+impl SplitReader for NatsSplitReader {
+    async fn new(
+        properties: NatsProperties,
+        splits: Vec<SplitImpl>,
+        parser_config: ParserConfig,
+        source_ctx: SourceContextRef,
+        _columns: Option<Vec<Column>>,
+    ) -> anyhow::Result<Self> {
+        ensure!(splits.len() == 1, "NATS reader only support single split");
+        let split = splits.into_iter().next().unwrap().into_nats().unwrap();
 
-    let stream = js.get_stream("parseable").await?;
-    stream
-        .create_consumer(consumer::Config {
-            name: Some("parseable_cons".into()),
-            deliver_subject: Some("parseable.event".into()),
-            deliver_group: Some("parseable_group".into()),
-            ack_policy: consumer::AckPolicy::All,
-            ..Default::default()
+        let client = async_nats::connect(properties.nats_address).await?;
+        let mut subscription = client
+            .queue_subscribe(properties.delivery_subject, properties.delivery_group)
+            .await?;
+
+        Ok(Self {
+            subscription,
+            parser_config,
+            source_ctx,
+            split_id: split.id(),
         })
-        .await?;
-
-    let cons: consumer::PushConsumer = match stream.get_consumer("parseable_cons").await {
-        Ok(mut consumer) => {
-            let name = &consumer.info().await?.name;
-            println!("Consumer {} is created.", name);
-
-            consumer
-        }
-        Err(err) => {
-            println!("Err: {}", err);
-            return Err(err);
-        }
-    };
-
-    // Subscription
-    let mut _sub = client
-        .queue_subscribe("parseable.event".into(), "parseable_group".into())
-        .await?;
-
-    let rt = async_runtime();
-
-    thread::spawn(move || {
-        rt.block_on(async move {
-            while let Some(msg) = cons.messages().await.unwrap().next().await {
-                // acknowledge
-                let _res = msg.as_ref().unwrap().ack().await;
-                println!("{:?}", msg.unwrap().payload);
-            }
-        })
-    });
-
-    Ok(())
+    }
 }

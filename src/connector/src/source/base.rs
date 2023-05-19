@@ -56,6 +56,10 @@ use crate::source::kinesis::enumerator::client::KinesisSplitEnumerator;
 use crate::source::kinesis::source::reader::KinesisSplitReader;
 use crate::source::kinesis::split::KinesisSplit;
 use crate::source::kinesis::{KinesisProperties, KINESIS_CONNECTOR};
+use crate::source::nats::enumerator::NatsSplitEnumerator;
+use crate::source::nats::source::reader::NatsSplitReader;
+use crate::source::nats::split::NatsSplit;
+use crate::source::nats::{NatsProperties, NATS_CONNECTOR};
 use crate::source::nexmark::source::reader::NexmarkSplitReader;
 use crate::source::nexmark::{
     NexmarkProperties, NexmarkSplit, NexmarkSplitEnumerator, NEXMARK_CONNECTOR,
@@ -220,6 +224,7 @@ pub enum ConnectorProperties {
     PostgresCdc(Box<CdcProperties>),
     CitusCdc(Box<CdcProperties>),
     GooglePubsub(Box<PubsubProperties>),
+    Nats(Box<NatsProperties>),
     Dummy(Box<()>),
 }
 
@@ -279,6 +284,7 @@ pub enum SplitImpl {
     PostgresCdc(CdcSplit),
     CitusCdc(CdcSplit),
     S3(FsSplit),
+    Nats(NatsSplit),
 }
 
 // for the `FsSourceExecutor`
@@ -311,6 +317,7 @@ pub enum SplitReaderImpl {
     PostgresCdc(Box<CdcSplitReader>),
     CitusCdc(Box<CdcSplitReader>),
     GooglePubsub(Box<PubsubSplitReader>),
+    Nats(Box<NatsSplitReader>),
 }
 
 pub enum SplitEnumeratorImpl {
@@ -324,6 +331,7 @@ pub enum SplitEnumeratorImpl {
     CitusCdc(DebeziumSplitEnumerator),
     GooglePubsub(PubsubSplitEnumerator),
     S3(S3SplitEnumerator),
+    Nats(NatsSplitEnumerator),
 }
 
 impl_connector_properties! {
@@ -336,7 +344,8 @@ impl_connector_properties! {
     { MySqlCdc, MYSQL_CDC_CONNECTOR },
     { PostgresCdc, POSTGRES_CDC_CONNECTOR },
     { CitusCdc, CITUS_CDC_CONNECTOR },
-    { GooglePubsub, GOOGLE_PUBSUB_CONNECTOR}
+    { GooglePubsub, GOOGLE_PUBSUB_CONNECTOR},
+    { Nats, NATS_CONNECTOR}
 }
 
 impl_split_enumerator! {
@@ -349,7 +358,8 @@ impl_split_enumerator! {
     { PostgresCdc, DebeziumSplitEnumerator },
     { CitusCdc, DebeziumSplitEnumerator },
     { GooglePubsub, PubsubSplitEnumerator},
-    { S3, S3SplitEnumerator }
+    { S3, S3SplitEnumerator },
+    { Nats, NatsSplitEnumerator},
 }
 
 impl_split! {
@@ -362,7 +372,8 @@ impl_split! {
     { MySqlCdc, MYSQL_CDC_CONNECTOR, CdcSplit },
     { PostgresCdc, POSTGRES_CDC_CONNECTOR, CdcSplit },
     { CitusCdc, CITUS_CDC_CONNECTOR, CdcSplit },
-    { S3, S3_CONNECTOR, FsSplit }
+    { S3, S3_CONNECTOR, FsSplit },
+    { Nats, NATS_CONNECTOR, NatsSplit}
 }
 
 impl_split_reader! {
@@ -376,7 +387,8 @@ impl_split_reader! {
     { PostgresCdc, CdcSplitReader},
     { CitusCdc, CdcSplitReader },
     { GooglePubsub, PubsubSplitReader },
-    { Dummy, DummySplitReader }
+    { Dummy, DummySplitReader },
+    { Nats, NatsSplitReader  },
 }
 
 pub type DataType = risingwave_common::types::DataType;

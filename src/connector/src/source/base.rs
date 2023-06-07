@@ -359,7 +359,7 @@ impl_split_enumerator! {
     { CitusCdc, DebeziumSplitEnumerator },
     { GooglePubsub, PubsubSplitEnumerator},
     { S3, S3SplitEnumerator },
-    { Nats, NatsSplitEnumerator},
+    { Nats, NatsSplitEnumerator}
 }
 
 impl_split! {
@@ -388,7 +388,7 @@ impl_split_reader! {
     { CitusCdc, CdcSplitReader },
     { GooglePubsub, PubsubSplitReader },
     { Dummy, DummySplitReader },
-    { Nats, NatsSplitReader  },
+    { Nats, NatsSplitReader  }
 }
 
 pub type DataType = risingwave_common::types::DataType;
